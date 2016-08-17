@@ -1,0 +1,14 @@
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: create-certs
+spec:
+  template:
+    metadata:
+      name: create-certs
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-certs
+          image: amouat/kubectl
+          imagePullPolicy: Always

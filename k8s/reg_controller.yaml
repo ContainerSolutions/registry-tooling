@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: kube-registry
+  namespace: kube-system
+  labels:
+    k8s-app: kube-registry
+    version: v0
+# A minikube issue prevents the following from working
+#    kubernetes.io/cluster-service: "true"
+spec:
+  replicas: 1
+  selector:
+    k8s-app: kube-registry
+    version: v0
+  template:
+    metadata:
+      labels:
+        k8s-app: kube-registry
+        version: v0
+# A minikube issue prevents the following from working
+#        kubernetes.io/cluster-service: "true"
+    spec:
+      containers:
+      - name: registry
+        image: registry:2
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+        env:
+        - name: REGISTRY_HTTP_ADDR
+          value: :5000
+        - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+          value: /var/lib/registry
+        - name: REGISTRY_HTTP_TLS_CERTIFICATE
+          value: /cert/ca.crt
+        - name: REGISTRY_HTTP_TLS_KEY
+          value: /key/domain.key
+        - name: REGISTRY_LOG_LEVEL
+          value: debug
+        volumeMounts:
+        - name: image-store
+          mountPath: /var/lib/registry
+        - name: registry-cert 
+          mountPath: /cert/
+          readOnly: true
+        - name: registry-key 
+          mountPath: /key/
+          readOnly: true
+        ports:
+        - containerPort: 5000
+          name: registry
+          protocol: TCP
+      volumes:
+      - name: image-store
+      - name: registry-cert
+        secret:
+          secretName: registry-cert
+      - name: registry-key
+        secret:
+          secretName: registry-key
