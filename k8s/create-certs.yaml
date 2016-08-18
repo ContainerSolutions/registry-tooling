@@ -10,5 +10,5 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: create-certs
-          image: amouat/kubectl
+          image: amouat/create-certs
           imagePullPolicy: Always
