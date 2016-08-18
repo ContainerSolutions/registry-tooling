@@ -3,7 +3,7 @@ set -e
 set -o pipefail
 
 if [[ $(id -u) -ne 0 ]]; then
-  echo "This script expects to run as root e.g:"
+  echo "This script expects to run as root i.e:"
   echo "sudo $0"
   exit 1
 fi
@@ -12,8 +12,20 @@ echo "Deleting any old certs..."
 kubectl delete job create-certs copy-certs &> /dev/null || true 
 
 echo
-echo "Creating new certs..."
+echo "Creating new certs"
 kubectl create -f k8s/create-certs.yaml
+
+echo
+echo -n "Waiting for job to complete"
+while [[ $(kubectl get job create-certs \
+  -o go-template --template "{{.status.succeeded}}") != 1 ]]
+do
+  sleep 1
+  echo -n "."
+done
+
+echo
+echo "Copying certs to nodes"
 kubectl create -f k8s/copy-certs.yaml
 
 echo
