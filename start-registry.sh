@@ -8,7 +8,7 @@ if [[ $(id -u) -ne 0 ]]; then
   exit 1
 fi
 
-echo "Deleting any old certs..."
+echo "Remove any old jobs"
 kubectl delete job create-certs copy-certs &> /dev/null || true 
 
 echo
@@ -26,7 +26,9 @@ done
 
 echo
 echo "Copying certs to nodes"
-kubectl create -f k8s/copy-certs.yaml
+
+kubectl get nodes -o go-template-file --template ./k8s/copy-certs-templ.yaml > /tmp/copy-certs.yaml
+kubectl create -f /tmp/copy-certs.yaml
 
 echo
 echo "Removing any old registry and starting new one..."
@@ -78,3 +80,6 @@ echo "Set-up completed."
 echo
 echo "The registry should shortly be available at:"
 echo "kube-registry.kube-system.svc.cluster.local:31000"
+
+
+
