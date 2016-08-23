@@ -9,7 +9,7 @@ if [[ $(id -u) -ne 0 ]]; then
 fi
 
 echo "Remove any old jobs"
-kubectl delete job create-certs copy-certs &> /dev/null || true 
+kubectl delete job create-certs &> /dev/null || true 
 
 echo
 echo "Creating new certs"
@@ -27,6 +27,12 @@ done
 echo
 echo "Copying certs to nodes"
 
+for job in $(kubectl get jobs -o go-template --template '{{range .items}}{{.metadata.name}} {{end}}')
+do
+  if [[ $job == copy-certs* ]]; then
+    kubectl delete job $job
+  fi
+done
 kubectl get nodes -o go-template-file --template ./k8s/copy-certs-templ.yaml > /tmp/copy-certs.yaml
 kubectl create -f /tmp/copy-certs.yaml
 
@@ -62,24 +68,28 @@ kubectl get --namespace=kube-system secret registry-cert \
 echo
 echo "Exposing registry via /etc/hosts"
 
-#make resolvable on local machine
-#this is very hacky 
-K8S_MASTER=$(kubectl cluster-info | \
-    sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | \
-    sed -n 's/Kubernetes master is running at https:\/\/\([^:]*\):.*/\1/p')
+schedulable_nodes=$(kubectl get nodes -o template \
+  --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "ExternalIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
+
+for n in $schedulable_nodes 
+do
+  K8S_NODE=$n
+  break
+done
 
 # sed would be a better choice than ed, but it wants to create a temp file :(
 # turned off stderr here, as ed likes to write to it even in success case
 printf 'g/kube-registry.kube-system.svc.cluster.local/d\nw\n' \
   | ed /etc/hosts 2> /dev/null
 
-echo "$K8S_MASTER kube-registry.kube-system.svc.cluster.local" >> /etc/hosts
+echo "$K8S_NODE kube-registry.kube-system.svc.cluster.local" >> /etc/hosts
 
 echo
 echo "Set-up completed."
 echo
 echo "The registry should shortly be available at:"
 echo "kube-registry.kube-system.svc.cluster.local:31000"
-
-
-
+echo
+echo "Note that this port will need to be open in any firewalls."
+echo "To open a firewall in GCE, try something like:
+echo "gcloud compute --project PROJECT firewall-rules create expose-registry --allow TCP:31000
