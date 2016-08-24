@@ -71,6 +71,11 @@ echo "Exposing registry via /etc/hosts"
 schedulable_nodes=$(kubectl get nodes -o template \
   --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "ExternalIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
 
+if [ -z "$schedulable_nodes" ]; then
+  schedulable_nodes=$(kubectl get nodes -o template \
+    --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "LegacyHostIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
+fi
+
 for n in $schedulable_nodes 
 do
   K8S_NODE=$n
@@ -79,10 +84,15 @@ done
 
 # sed would be a better choice than ed, but it wants to create a temp file :(
 # turned off stderr here, as ed likes to write to it even in success case
-printf 'g/kube-registry.kube-system.svc.cluster.local/d\nw\n' \
-  | ed /etc/hosts 2> /dev/null
 
-echo "$K8S_NODE kube-registry.kube-system.svc.cluster.local" >> /etc/hosts
+if [ -n "$K8S_NODE" ]; then
+  printf 'g/kube-registry.kube-system.svc.cluster.local/d\nw\n' \
+    | ed /etc/hosts 2> /dev/null
+
+  echo "$K8S_NODE kube-registry.kube-system.svc.cluster.local" >> /etc/hosts
+else
+  echo "Failed to find external address for cluster" >&2
+fi
 
 echo
 echo "Set-up completed."
