@@ -101,5 +101,5 @@ echo "The registry should shortly be available at:"
 echo "kube-registry.kube-system.svc.cluster.local:31000"
 echo
 echo "Note that this port will need to be open in any firewalls."
-echo "To open a firewall in GCE, try something like:
-echo "gcloud compute --project PROJECT firewall-rules create expose-registry --allow TCP:31000
+echo "To open a firewall in GCE, try something like:"
+echo "gcloud compute --project PROJECT firewall-rules create expose-registry --allow TCP:31000"
