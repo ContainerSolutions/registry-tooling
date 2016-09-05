@@ -19,7 +19,7 @@ schedulable_nodes=$(kubectl get nodes -o template \
   --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "InternalIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
 
 #choosing a host at random isn't ideal, but I don't how to find the host for the pod
-LOCAL_IP=$(shuf -e -n1 $schedulable_nodes)
-echo "$LOCAL_IP kube-registry.kube-system.svc.cluster.local #Added by secure-kube-registry script" >> /hostfile
+local_ip=$(shuf -e -n1 $schedulable_nodes)
+echo "$local_ip kube-registry.kube-system.svc.cluster.local #Added by secure-kube-registry script" >> /hostfile
 echo "Added entry"
 
