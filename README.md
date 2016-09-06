@@ -4,11 +4,9 @@ self-signed-cert.
 
 Whilst there is an existing [cluster addon to start a registry](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry), it suffers from several flaws:
 
- - Most importantly, it does not use TLS. This means all transfers are
-   unencrypted.
- - Each node has to run an instance of haproxy (the kube-registry-proxy image).
- - Setting up localhost access requires setting up kubectl to do port
-   forwarding.
+ - It does not use TLS. This means all transfers are unencrypted.
+ - Each cluster node has to run an instance of haproxy (the kube-registry-proxy image).
+ - Another proxy has to be set-up to enable access from developer's machines
 
 Using this script will:
 
