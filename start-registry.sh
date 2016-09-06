@@ -44,7 +44,7 @@ function configure_nodes {
   echo -n "Waiting for cert to become available"
   set +e
   kubectl get --namespace=kube-system secret registry-cert &> /dev/null
-  rc=$?
+  local rc=$?
   while [ $rc != 0 ]
   do
     sleep 1
@@ -57,6 +57,15 @@ function configure_nodes {
 
 function configure_host {
   echo 
+  kubectl get --namespace=kube-system secret registry-cert &> /dev/null
+  local rc=$?
+  if [ $rc != 0 ]; then
+    echo "Registry certificate not found - expected it to be stored in the
+kubernetes secret registry-cert."
+    echo "Failed to configure host."
+    return 1
+  fi
+
   echo "Adding certificate to local machine..."
   kubectl get --namespace=kube-system secret registry-cert \
     -o go-template --template '{{(index .data "ca.crt")}}' \
@@ -66,7 +75,7 @@ function configure_host {
   echo
   echo "Exposing registry via /etc/hosts"
 
-  schedulable_nodes=$(kubectl get nodes -o template \
+  local schedulable_nodes=$(kubectl get nodes -o template \
     --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "ExternalIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
 
   if [ -z "$schedulable_nodes" ]; then
@@ -90,7 +99,9 @@ function configure_host {
     echo "$k8s_node kube-registry.kube-system.svc.cluster.local #added by secure-kube-registry" >> /etc/hosts
   else
     echo "Failed to find external address for cluster" >&2
+    return 2
   fi
+  return 0
 }
 
 #start main
@@ -101,7 +112,30 @@ if [[ $(id -u) -ne 0 ]]; then
   exit 1
 fi
 
-echo "This script will start a registry in your Kubernetes cluster and
+#process args
+
+local_only=false
+print_help=false
+
+while [[ $# -gt 0 ]]
+do
+  key="$1"
+
+  case $key in
+    -l|--local)
+      local_only=true
+      ;;
+    -h|--help)
+      print_help=true
+      ;;
+    *)
+      ;;
+  esac
+  shift
+done
+
+usage=$(cat <<'EOF'
+This script will start a registry in your Kubernetes cluster and
 configure it for secure access via TLS.
 
 It does this by generating a TLS certificate and copying it to all nodes plus
@@ -112,7 +146,26 @@ It will also (optionally) configure the current machine to access the registry
 in the same way.
 
 If you are concerned about the effects of editing /etc/hosts or do not
-understand the above, please do not run this script."
+understand the above, please do not run this script.
+EOF
+)
+
+options="Use -l or --local to configure localhost to access an existing registry."
+
+if [ "$print_help" = true ]; then
+  echo "$usage"
+  echo 
+  echo $options
+  exit 0
+fi
+
+if [ "$local_only" = true ]; then
+  echo "Setting up localhost to access registry"
+  configure_host
+  exit $?
+fi
+
+echo "$usage"
 
 echo
 
@@ -151,6 +204,6 @@ echo "kube-registry.kube-system.svc.cluster.local:31000"
 echo
 echo "Note that this port will need to be open in any firewalls."
 echo "To open a firewall in GCE, try something like:"
-echo "gcloud compute --project PROJECT firewall-rules create expose-registry --allow TCP:31000"
+echo "gcloud compute firewall-rules create expose-registry --allow TCP:31000"
 
 
