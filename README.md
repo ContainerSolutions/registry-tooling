@@ -1,19 +1,35 @@
 # secure-kube-reg
-Scripts to get a secure Kubernetes registry up and running.
+Script to get a secure Kubernetes registry up and running.
 
-Whilst there is an existing module 
+Whilst there is an existing [cluster addon to start a registry](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry), it suffers from several flaws:
+
+ - Most importantly, it does not use TLS. This means all transfers are
+   unencrypted
+ - Each node has to run an instance of haproxy (the kube-registry-proxy image),
+ - Setting up localhost access requires setting up kubectl to do port forwarding
+
+Using this script will:
+
+ - Install a registry on the current cluster with a self-signed certificate
+ - Configure all nodes to access the registry via TLS
+ - Configure the local machine to access the registry via TLS
+ - Use NodePorts to avoid the need to run haproxy
+
+It will not currently configure a storage backend; please take a look at the
+config files to see how to do this.
+
+The script has been tested with minikube and GCE clusters.
 
 WARNING: This will do funky stuff like edit /etc/hosts. It will warn before
 doing this, but please be aware that it could break things. If you want to get a
 secure registry running on existing cluster already handling load, I suggest you
 look at what the scripts do and run the steps manually.
 
-Note that the scripts will target whichever cluster `kubectl` currently points
-at.
 
 ## Usage
 
-Assuming you have minikube or similar up and running, try:
+The scripts will target whichever cluster `kubectl` currently points at.
+Assuming your cluster is up-and-running, try:
 
 ```
 $ sudo ./start-registry.sh
