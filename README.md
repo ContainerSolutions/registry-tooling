@@ -4,21 +4,22 @@ Script to get a secure Kubernetes registry up and running.
 Whilst there is an existing [cluster addon to start a registry](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry), it suffers from several flaws:
 
  - Most importantly, it does not use TLS. This means all transfers are
-   unencrypted
- - Each node has to run an instance of haproxy (the kube-registry-proxy image),
- - Setting up localhost access requires setting up kubectl to do port forwarding
+   unencrypted.
+ - Each node has to run an instance of haproxy (the kube-registry-proxy image).
+ - Setting up localhost access requires setting up kubectl to do port
+   forwarding.
 
 Using this script will:
 
- - Install a registry on the current cluster with a self-signed certificate
- - Configure all nodes to access the registry via TLS
- - Configure the local machine to access the registry via TLS
- - Use NodePorts to avoid the need to run haproxy
+ - Install a registry on the current cluster with a self-signed certificate.
+ - Configure all nodes to access the registry via TLS.
+ - Configure the local machine to access the registry via TLS.
+ - Use NodePorts to avoid the need to run haproxy.
 
 It will not currently configure a storage backend; please take a look at the
 config files to see how to do this.
 
-The script has been tested with minikube and GCE clusters.
+The script has been tested with [minikube](https://github.com/kubernetes/minikube) and GCE clusters.
 
 WARNING: This will do funky stuff like edit /etc/hosts. It will warn before
 doing this, but please be aware that it could break things. If you want to get a
@@ -61,6 +62,6 @@ Container Solutions are currently looking at developing tooling for working with
 images and registries on clusters. Please get in touch if you'd like to hear
 more or discuss ideas.
 
-e-mail: adrian.mouat@container-solutions.com
-twitter: @adrianmouat
+ - adrian.mouat@container-solutions.com
+ - [@adrianmouat](https://twitter.com/adrianmouat)
 
