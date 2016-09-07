@@ -1,6 +1,6 @@
 # secure-kube-reg
-Script to get a secure Kubernetes registry up and running with a
-self-signed-cert.
+Install a secure Docker registry on any Kubernetes cluster with a single
+command.
 
 Whilst there is an existing [cluster addon to start a registry](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry), it suffers from several flaws:
 
