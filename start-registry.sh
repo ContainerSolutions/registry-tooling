@@ -56,7 +56,8 @@ function configure_nodes {
 }
 
 function configure_host {
-  echo 
+
+  set +e
   kubectl get --namespace=kube-system secret registry-cert &> /dev/null
   local rc=$?
   if [ $rc != 0 ]; then
@@ -65,6 +66,7 @@ kubernetes secret registry-cert."
     echo "Failed to configure host."
     return 1
   fi
+  set -e
 
   echo "Adding certificate to local machine..."
   mkdir -p /etc/docker/certs.d/kube-registry.kube-system.svc.cluster.local:31000
@@ -76,12 +78,12 @@ kubernetes secret registry-cert."
   echo
   echo "Exposing registry via /etc/hosts"
 
-  local schedulable_nodes=$(kubectl get nodes -o template \
-    --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "ExternalIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
-
-  if [ -z "$schedulable_nodes" ]; then
+  local schedulable_nodes=""
+  if [ $SKR_EXTERNAL_IP ]; then
+    schedulable_nodes=$SKR_EXTERNAL_IP
+  else
     schedulable_nodes=$(kubectl get nodes -o template \
-      --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "LegacyHostIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
+      --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "ExternalIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
   fi
 
   for n in $schedulable_nodes 
@@ -99,9 +101,16 @@ kubernetes secret registry-cert."
 
     echo "$k8s_node kube-registry.kube-system.svc.cluster.local #added by secure-kube-registry" >> /etc/hosts
   else
+    echo
     echo "Failed to find external address for cluster" >&2
+    echo "You can force the IP using the SKR_EXTERNAL_IP variable."
+    echo "For example, if you're running minikube:"
+    echo
+    echo '$ export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E ./start-registry.sh -l'
     return 2
   fi
+  echo 
+  echo "Succesfully configured localhost"
   return 0
 }
 
