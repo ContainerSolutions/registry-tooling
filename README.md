@@ -61,7 +61,9 @@ $ kubectl run r1 --image kube-registry.kube-system.svc.cluster.local:31000/redis
 If you're running on Mac and using minikube, note that you can use the Docker
 daemon in the VM to access the registry. Rather than running with `-l`, just do:
 
+```
 $ eval $(minkube docker-env)
+```
 
 ## Further Development
 
