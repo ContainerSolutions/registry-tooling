@@ -18,7 +18,7 @@ Using this script will:
 It will not currently configure a storage backend; please take a look at the
 config files to see how to do this.
 
-The script has been tested with [minikube](https://github.com/kubernetes/minikube) and GCE clusters.
+The script has been tested with [minikube](https://github.com/kubernetes/minikube) and GCE clusters. Docker for Mac is _not_ currently supported; any help with getting this working would be appreciated. Note that Mac minikube users can use the minikube VM which will work (see below).
 
 WARNING: This will do funky stuff like edit /etc/hosts. It will warn before
 doing this, but please be aware that it could break things. If you want to get a
@@ -32,10 +32,20 @@ The scripts will target whichever cluster `kubectl` currently points at.
 Assuming your cluster is up-and-running, try:
 
 ```
-$ sudo ./start-registry.sh
+$ ./start-registry.sh
 ```
 
-Once that completes, we can test it:
+Once that completes, you should have running registry with certificates copied
+to all nodes and networking configured. If you are running on a Linux host or
+VM, you can configure the local Docker daemon to access the registry with:
+
+```
+$ sudo ./start-registry.sh -l
+```
+
+This command should work on any Linux host whose kubectl is pointing at a
+cluster running a configured registry. We can then test with:
+
 
 ```
 $ docker pull redis
@@ -46,12 +56,12 @@ $ docker push kube-registry.kube-system.svc.cluster.local:31000/redis
 $ kubectl run r1 --image kube-registry.kube-system.svc.cluster.local:31000/redis
 ```
 
-If you have already installed a registry using the script and want to set up
-access on a new machine, just run:
+## Minikube
 
-```
-$ sudo ./start-registry.sh -l
-```
+If you're running on Mac and using minikube, note that you can use the Docker
+daemon in the VM to access the registry. Rather than running with `-l`, just do:
+
+$ eval $(minkube docker-env)
 
 ## Further Development
 
