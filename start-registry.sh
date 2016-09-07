@@ -67,9 +67,10 @@ kubernetes secret registry-cert."
   fi
 
   echo "Adding certificate to local machine..."
+  mkdir -p /etc/docker/certs.d/kube-registry.kube-system.svc.cluster.local:31000
   kubectl get --namespace=kube-system secret registry-cert \
     -o go-template --template '{{(index .data "ca.crt")}}' \
-    | base64 -d > \
+    | $base64_decode > \
     /etc/docker/certs.d/kube-registry.kube-system.svc.cluster.local:31000/ca.crt
 
   echo
@@ -116,6 +117,11 @@ fi
 
 local_only=false
 print_help=false
+base64_decode="base64 -d"
+if [ "$(uname -s)" = "Darwin" ]; then
+  base64_decode="base64 -D"
+fi
+
 
 while [[ $# -gt 0 ]]
 do
