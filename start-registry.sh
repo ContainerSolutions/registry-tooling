@@ -31,6 +31,7 @@ function configure_nodes {
   done
   kubectl get nodes -o go-template-file --template ./k8s/copy-certs-templ.yaml > /tmp/copy-certs.yaml
   kubectl create -f /tmp/copy-certs.yaml
+  rm /tmp/copy-certs.yaml
 
   echo
   echo "Removing any old registry and starting new one..."
@@ -116,6 +117,7 @@ kubernetes secret registry-cert."
 
 #start main
 
+args=$@
 
 #process args
 
@@ -170,6 +172,12 @@ if [ "$print_help" = true ]; then
 fi
 
 if [ "$local_only" = true ]; then
+  if [[ $(id -u) -ne 0 ]]; then
+    echo "Configuring localhost requires root privileges i.e:"
+    echo 
+    echo "$ sudo $0 $args"
+    exit 1
+  fi
   echo "Setting up localhost to access registry"
   configure_host
   exit $?
