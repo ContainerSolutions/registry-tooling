@@ -217,7 +217,8 @@ if [ "$(uname -s)" = "Darwin" ]; then
   echo "Currently Docker for Mac cannot be configured. Use a Linux VM instead."
   echo 'Note that users of minikube can use the minikube deamon with eval $(minikube docker-env)'
 else
-  echo "Use the -l flag to configure a local Docker daemon to access the registry."
+  echo "Use the -l flag to configure a local Docker daemon to access the registry:"
+  echo "$ sudo $0 -l"
 fi
 
 
