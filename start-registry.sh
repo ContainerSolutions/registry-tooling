@@ -116,11 +116,6 @@ kubernetes secret registry-cert."
 
 #start main
 
-if [[ $(id -u) -ne 0 ]]; then
-  echo "This script expects to run as root i.e:"
-  echo "sudo $0"
-  exit 1
-fi
 
 #process args
 
@@ -157,8 +152,8 @@ It does this by generating a TLS certificate and copying it to all nodes plus
 setting /etc/hosts to resolve the registry name. The certificate will be stored
 as a Kubernetes secret named registry-cert.
 
-It will also (optionally) configure the current machine to access the registry
-in the same way.
+The script can be re-run with -l to configure a local Docker daemon to access 
+the registry.
 
 If you are concerned about the effects of editing /etc/hosts or do not
 understand the above, please do not run this script.
@@ -198,27 +193,23 @@ configure_nodes
 echo 
 echo 
 
-while true
-do
-  read -r -p 'Do you want to add the certificate and modify /etc/hosts on the current machine? (y/n) ' choice
-  case "$choice" in
-    n|N) break;;
-    y|Y) configure_host 
-      break;;
-    *) echo 'Response not valid';;
-  esac
-done
-
 echo
 echo "Set-up completed."
 echo
 echo "The registry certificate is stored in the secret registry-cert"
 echo 
-echo "The registry should shortly be available at:"
+echo "The registry should shortly be available to the cluster at:"
 echo "kube-registry.kube-system.svc.cluster.local:31000"
 echo
 echo "Note that this port will need to be open in any firewalls."
 echo "To open a firewall in GCE, try something like:"
 echo "gcloud compute firewall-rules create expose-registry --allow TCP:31000"
+echo
+if [ "$(uname -s)" = "Darwin" ]; then
+  echo "Currently Docker for Mac cannot be configured. Use a Linux VM instead."
+  echo 'Note that users of minikube can use the minikube deamon with eval $(minikube docker-env)'
+else
+  echo "Use the -l flag to configure a local Docker daemon to access the registry."
+fi
 
 
