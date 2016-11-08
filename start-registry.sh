@@ -29,9 +29,10 @@ function configure_nodes {
       kubectl delete job $job
     fi
   done
-  kubectl get nodes -o go-template-file --template ./k8s/copy-certs-templ.yaml > /tmp/copy-certs.yaml
-  kubectl create -f /tmp/copy-certs.yaml
-  rm /tmp/copy-certs.yaml
+  tmp_file=$(mktemp)
+  kubectl get nodes -o go-template-file --template ./k8s/copy-certs-templ.yaml > $tmp_file
+  kubectl create -f $tmp_file
+  rm $tmp_file
 
   echo
   echo "Removing any old registry and starting new one..."
@@ -72,12 +73,14 @@ kubernetes secret registry-cert."
   if "$on_mac"; then
 
     echo "Assuming running Docker for Mac - adding certificate to internal VM"
+    tmp_file=$(mktemp)
     kubectl get --namespace=kube-system secret registry-cert \
             -o go-template --template '{{(index .data "ca.crt")}}'\
-            | $base64_decode > /tmp/cert
-    docker run --rm -v /tmp/cert:/data/cert -v /etc/docker:/data/docker alpine \
+            | $base64_decode > $tmp_file
+    docker run --rm -v $tmp_file:/data/cert -v /etc/docker:/data/docker alpine \
             sh -c 'mkdir -p /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000\
                    && cp /data/cert /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000/ca.crt'
+    rm $tmp_file
   else #on Linux
 
     echo "Adding certificate to local machine..."
