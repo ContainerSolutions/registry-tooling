@@ -69,12 +69,24 @@ kubernetes secret registry-cert."
   fi
   set -e
 
-  echo "Adding certificate to local machine..."
-  mkdir -p /etc/docker/certs.d/kube-registry.kube-system.svc.cluster.local:31000
-  kubectl get --namespace=kube-system secret registry-cert \
-    -o go-template --template '{{(index .data "ca.crt")}}' \
-    | $base64_decode > \
-    /etc/docker/certs.d/kube-registry.kube-system.svc.cluster.local:31000/ca.crt
+  if "$on_mac"; then
+
+    echo "Assuming running Docker for Mac - adding certificate to internal VM"
+    kubectl get --namespace=kube-system secret registry-cert \
+            -o go-template --template '{{(index .data "ca.crt")}}'\
+            | $base64_decode > /tmp/cert
+    docker run --rm -v /tmp/cert:/data/cert -v /etc/docker:/data/docker alpine \
+            sh -c 'mkdir -p /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000\
+                   && cp /data/cert /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000/ca.crt'
+  else #on Linux
+
+    echo "Adding certificate to local machine..."
+    mkdir -p /etc/docker/certs.d/kube-registry.kube-system.svc.cluster.local:31000
+    kubectl get --namespace=kube-system secret registry-cert \
+      -o go-template --template '{{(index .data "ca.crt")}}' \
+      | $base64_decode > \
+      /etc/docker/certs.d/kube-registry.kube-system.svc.cluster.local:31000/ca.crt
+  fi
 
   echo
   echo "Exposing registry via /etc/hosts"
@@ -123,8 +135,10 @@ args=$@
 
 local_only=false
 print_help=false
+on_mac=false
 base64_decode="base64 -d"
 if [ "$(uname -s)" = "Darwin" ]; then
+  on_mac=true
   base64_decode="base64 -D"
 fi
 
@@ -213,12 +227,10 @@ echo "Note that this port will need to be open in any firewalls."
 echo "To open a firewall in GCE, try something like:"
 echo "gcloud compute firewall-rules create expose-registry --allow TCP:31000"
 echo
-if [ "$(uname -s)" = "Darwin" ]; then
-  echo "Currently Docker for Mac cannot be configured. Use a Linux VM instead."
-  echo 'Note that users of minikube can use the minikube deamon with eval $(minikube docker-env)'
-else
-  echo "Use the -l flag to configure a local Docker daemon to access the registry:"
-  echo "$ sudo $0 -l"
-fi
+echo "Use the -l flag to configure a local Docker daemon to access the registry:"
+echo "$ sudo $0 -l"
+echo
+echo "Or on minikube:"
+echo 'export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E ./start-registry.sh -l'
 
 
