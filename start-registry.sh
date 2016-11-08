@@ -73,11 +73,12 @@ kubernetes secret registry-cert."
   if "$on_mac"; then
 
     echo "Assuming running Docker for Mac - adding certificate to internal VM"
-    tmp_file=$(mktemp)
+    tmp_file=$(mktemp /tmp/cert.XXXXXX)
+    chmod go+rw $tmp_file
     kubectl get --namespace=kube-system secret registry-cert \
             -o go-template --template '{{(index .data "ca.crt")}}'\
             | $base64_decode > $tmp_file
-    docker run --rm -v $tmp_file:/data/cert -v /etc/docker:/data/docker alpine \
+    docker run --rm -v ${tmp_file}:/data/cert -v /etc/docker:/data/docker alpine \
             sh -c 'mkdir -p /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000\
                    && cp /data/cert /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000/ca.crt'
     rm $tmp_file
@@ -172,7 +173,7 @@ setting /etc/hosts to resolve the registry name. The certificate will be stored
 as a Kubernetes secret named registry-cert.
 
 The script can be run with -l to configure a local Docker daemon (e.g. a
-developer's laptop) with access to the registry.
+developers laptop) with access to the registry.
 
 If you are concerned about the effects of editing /etc/hosts or do not
 understand the above, please do not run this script.
@@ -235,5 +236,3 @@ echo "$ sudo $0 -l"
 echo
 echo "Or on minikube:"
 echo 'export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E ./start-registry.sh -l'
-
-
