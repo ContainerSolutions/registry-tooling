@@ -5,14 +5,14 @@ command.
 Whilst there is an existing [cluster addon to start a registry](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry), it suffers from several flaws:
 
  - It does not use TLS. This means all transfers are unencrypted.
- - Each cluster node has to run an instance of haproxy (the kube-registry-proxy image).
+ - Each cluster node runs an instance of haproxy (the kube-registry-proxy image).
  - Another proxy has to be set-up to enable access from developer's machines
 
 Using this script will:
 
  - Install a registry on the current cluster with a self-signed certificate.
  - Configure all nodes to access the registry via TLS.
- - Configure the local machine to access the registry via TLS.
+ - Optionally configure a local Docker daemon (e.g. developer's laptop) to access the registry via TLS.
  - Use NodePorts to avoid the need to run haproxy.
 
 It will not currently configure a storage backend; please take a look at the

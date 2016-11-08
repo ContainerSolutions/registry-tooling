@@ -154,8 +154,8 @@ It does this by generating a TLS certificate and copying it to all nodes plus
 setting /etc/hosts to resolve the registry name. The certificate will be stored
 as a Kubernetes secret named registry-cert.
 
-The script can be re-run with -l to configure a local Docker daemon to access 
-the registry.
+The script can be run with -l to configure a local Docker daemon (e.g. a
+developer's laptop) with access to the registry.
 
 If you are concerned about the effects of editing /etc/hosts or do not
 understand the above, please do not run this script.
