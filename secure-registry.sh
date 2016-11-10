@@ -79,8 +79,8 @@ kubernetes secret registry-cert."
             -o go-template --template '{{(index .data "ca.crt")}}'\
             | $base64_decode > "$tmp_file"
     docker run --rm -v "$tmp_file":/data/cert -v /etc/docker:/data/docker alpine \
-            sh -c 'mkdir -p /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000
-                   && cp /data/cert /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000/ca.crt'
+            sh -c 'mkdir -p /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000 &&
+                   cp /data/cert /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000/ca.crt'
     rm "$tmp_file"
 
   else #on Linux
