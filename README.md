@@ -1,4 +1,4 @@
-# secure-registry
+# Registry Tooling
 
 Tools for working with Docker registries, especially those using self-signed
 certificates.
