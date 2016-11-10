@@ -35,7 +35,7 @@ look at what the scripts do and run the steps manually.
 
 ## Usage
 
-### Installing the Registry on Kubernetes
+### Installing a Registry on Kubernetes
 
 The scripts will target whichever cluster `kubectl` currently points at.
 Assuming your cluster is up-and-running, try:
