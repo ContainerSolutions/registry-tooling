@@ -26,13 +26,13 @@ function configure_nodes {
   for job in $(kubectl get jobs -o go-template --template '{{range .items}}{{.metadata.name}} {{end}}')
   do
     if [[ $job == copy-certs* ]]; then
-      kubectl delete job $job
+      kubectl delete job "$job"
     fi
   done
   tmp_file=$(mktemp)
-  kubectl get nodes -o go-template-file --template ./k8s/copy-certs-templ.yaml > $tmp_file
-  kubectl create -f $tmp_file
-  rm $tmp_file
+  kubectl get nodes -o go-template-file --template ./k8s/copy-certs-templ.yaml > "$tmp_file"
+  kubectl create -f "$tmp_file"
+  rm "$tmp_file"
 
   echo
   echo "Removing any old registry and starting new one..."
@@ -74,14 +74,15 @@ kubernetes secret registry-cert."
 
     echo "Assuming running Docker for Mac - adding certificate to internal VM"
     tmp_file=$(mktemp /tmp/cert.XXXXXX)
-    chmod go+rw $tmp_file
+    chmod go+rw "$tmp_file"
     kubectl get --namespace=kube-system secret registry-cert \
             -o go-template --template '{{(index .data "ca.crt")}}'\
-            | $base64_decode > $tmp_file
-    docker run --rm -v ${tmp_file}:/data/cert -v /etc/docker:/data/docker alpine \
-            sh -c 'mkdir -p /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000\
+            | $base64_decode > "$tmp_file"
+    docker run --rm -v "$tmp_file":/data/cert -v /etc/docker:/data/docker alpine \
+            sh -c 'mkdir -p /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000
                    && cp /data/cert /data/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:31000/ca.crt'
-    rm $tmp_file
+    rm "$tmp_file"
+
   else #on Linux
 
     echo "Adding certificate to local machine..."
@@ -96,7 +97,7 @@ kubernetes secret registry-cert."
   echo "Exposing registry via /etc/hosts"
 
   local schedulable_nodes=""
-  if [ $SKR_EXTERNAL_IP ]; then
+  if [ "$SKR_EXTERNAL_IP" ]; then
     schedulable_nodes=$SKR_EXTERNAL_IP
   else
     schedulable_nodes=$(kubectl get nodes -o template \
@@ -123,7 +124,7 @@ kubernetes secret registry-cert."
     echo "You can force the IP using the SKR_EXTERNAL_IP variable."
     echo "For example, if you're running minikube:"
     echo
-    echo '$ export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E ./start-registry.sh -l'
+    echo '$ export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E' "$0 -c"
     return 2
   fi
   echo 
@@ -131,14 +132,71 @@ kubernetes secret registry-cert."
   return 0
 }
 
-#start main
+function install_k8s_registry {
 
-args=$@
+  k8s_usage=$(cat <<EOF 
+
+Installs a Docker registry in your Kubernetes cluster and configures it
+for secure access via TLS.
+
+This involves generating a TLS certificate and copying it to all nodes, plus
+setting /etc/hosts on the nodes to resolve the registry name. The certificate
+will be stored as a Kubernetes secret named "registry-cert".
+
+If you are concerned about the effects of editing /etc/hosts or do not
+understand the above, please do not use this tool.
+
+EOF
+  )
+  echo "$k8s_usage"
+
+  echo
+
+  while true
+  do
+    read -r -p 'Do you want to continue? (y/n) ' choice
+    case "$choice" in
+      n|N) exit;;
+      y|Y) break;;
+      *) echo 'Response not valid';;
+    esac
+  done
+
+  configure_nodes
+  echo 
+  echo 
+
+  echo
+  completed=$(cat <<-EOF
+Set-up completed
+
+The registry certificate is stored in the secret "registry-cert"
+
+The registry should shortly be available to the cluster at:
+kube-registry.kube-system.svc.cluster.local:31000
+
+Note that this port will need to be open in any firewalls.
+To open a firewall in GCE, try:
+gcloud compute firewall-rules create expose-registry --allow TCP:31000
+
+Use the -c flag to configure a local Docker daemon to access the registry:
+$ sudo $0 -c
+
+Or on minikube:
+$ echo 'export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E ./secure-registry -c'
+EOF
+  )
+  echo "$completed"
+}
+
+#start main
 
 #process args
 
-local_only=false
+args=$@
 print_help=false
+install_cert=false
+install_k8s=false
 on_mac=false
 base64_decode="base64 -d"
 if [ "$(uname -s)" = "Darwin" ]; then
@@ -152,9 +210,12 @@ do
   key="$1"
 
   case $key in
-    -l|--local)
-      local_only=true
+    -c|--install-cert)
+      install_cert=true
       ;;
+    -k|--install-k8s-reg)
+      install_k8s=true
+    ;;
     -h|--help)
       print_help=true
       ;;
@@ -164,34 +225,31 @@ do
   shift
 done
 
-usage=$(cat <<'EOF'
-This script will start a registry in your Kubernetes cluster and
-configure it for secure access via TLS.
+usage=$(cat <<EOF
 
-It does this by generating a TLS certificate and copying it to all nodes plus
-setting /etc/hosts to resolve the registry name. The certificate will be stored
-as a Kubernetes secret named registry-cert.
-
-The script can be run with -l to configure a local Docker daemon (e.g. a
-developers laptop) with access to the registry.
-
-If you are concerned about the effects of editing /etc/hosts or do not
-understand the above, please do not run this script.
+Tool for working with Docker registries, especially those using self-signed
+certificates. 
 EOF
 )
 
-options="Use -l or --local to configure localhost to access an existing registry."
+options=$(cat <<EOF
+  -c --install-cert    install the registry certificate on the current 
+                       Docker engine.
+  -k --install-k8s-reg install a secure registy on a Kubernetes cluster or 
+                       minikube.
+EOF
+)
 
-if [ "$print_help" = true ]; then
-  echo "$usage"
-  echo 
-  echo $options
-  exit 0
+
+if [ "$install_k8s" = true ];then
+  install_k8s_registry
+  exit $?
 fi
 
-if [ "$local_only" = true ]; then
+if [ "$install_cert" = true ]; then
   if [[ $(id -u) -ne 0 ]]; then
-    echo "Configuring localhost requires root privileges i.e:"
+    # could use docker to circumvent this issue
+    echo "Installing a certificate requires root privileges i.e:"
     echo 
     echo "$ sudo $0 $args"
     exit 1
@@ -202,37 +260,12 @@ if [ "$local_only" = true ]; then
 fi
 
 echo "$usage"
-
-echo
-
-while true
-do
-  read -r -p 'Do you want to continue? (y/n) ' choice
-  case "$choice" in
-    n|N) exit;;
-    y|Y) break;;
-    *) echo 'Response not valid';;
-  esac
-done
-
-configure_nodes
 echo 
-echo 
+echo "$options"
 
-echo
-echo "Set-up completed."
-echo
-echo "The registry certificate is stored in the secret registry-cert"
-echo 
-echo "The registry should shortly be available to the cluster at:"
-echo "kube-registry.kube-system.svc.cluster.local:31000"
-echo
-echo "Note that this port will need to be open in any firewalls."
-echo "To open a firewall in GCE, try something like:"
-echo "gcloud compute firewall-rules create expose-registry --allow TCP:31000"
-echo
-echo "Use the -l flag to configure a local Docker daemon to access the registry:"
-echo "$ sudo $0 -l"
-echo
-echo "Or on minikube:"
-echo 'export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E ./start-registry.sh -l'
+
+if [ "$print_help" = true ]; then
+  exit 0
+else
+  exit 1
+fi
