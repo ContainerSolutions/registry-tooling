@@ -114,7 +114,7 @@ kubernetes secret registry-cert."
   # turned off stderr here, as ed likes to write to it even in success case
 
   if [[ -n "$k8s_node" ]]; then
-    printf 'g/$registry_host/d\nw\n' \
+    printf "g/$registry_host/d\nw\n" \
       | ed /etc/hosts 2> /dev/null
 
     echo "$k8s_node $registry_host #added by secure-kube-registry" >> /etc/hosts

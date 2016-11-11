@@ -19,6 +19,9 @@ set -e
 export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E ../secure-registry.sh -c
 docker pull alpine:latest
 docker tag alpine:latest kube-registry.kube-system.svc.cluster.local:31000/alpine:latest
+#this typically fails, presumably due to cached DNS
+echo "Giving DNS 5 secs"
+sleep 5
 docker push kube-registry.kube-system.svc.cluster.local:31000/alpine:latest
 kubectl delete deployment test-deploy || true
 kubectl run test-deploy --image kube-registry.kube-system.svc.cluster.local:31000/alpine:latest --command sleep 100
@@ -26,4 +29,4 @@ kubectl run test-deploy --image kube-registry.kube-system.svc.cluster.local:3100
 kubectl delete deployment test-deploy
 
 echo
-echo "Passed Test"
+echo "Tests Passed"
