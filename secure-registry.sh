@@ -83,7 +83,7 @@ Kubernetes secret registry-cert."
     chmod go+rw "$tmp_file"
     kubectl get --namespace=kube-system secret registry-cert \
             -o go-template --template '{{(index .data "ca.crt")}}' \
-            | $base64_decode > "$tmp_file"
+            | base64 -D > "$tmp_file"
     docker run --rm -v "$tmp_file":/data/cert -v /etc/docker:/data/docker alpine \
             sh -c "mkdir -p /data/docker/certs.d/$registry_host\:$registry_port &&
                    cp /data/cert /data/docker/certs.d/$registry_host\:$registry_port/ca.crt"
@@ -95,7 +95,7 @@ Kubernetes secret registry-cert."
     mkdir -p "/etc/docker/certs.d/${registry_host}:$registry_port"
     kubectl get --namespace=kube-system secret registry-cert \
       -o go-template --template '{{(index .data "ca.crt")}}' \
-      | $base64_decode > \
+      | base64 -d > \
       "/etc/docker/certs.d/${registry_host}:$registry_port/ca.crt"
   fi
 
@@ -251,10 +251,8 @@ registry_host="kube-registry.kube-system.svc.cluster.local"
 registry_port=31000
 
 on_mac=false
-base64_decode="base64 -d"
 if [[ "$(uname -s)" = "Darwin" ]]; then
   on_mac=true
-  base64_decode="base64 -D"
 fi
 
 #change to directory with script so we can reach deps
@@ -297,6 +295,12 @@ install-k8s-reg
 EOF
 )
 
+function print_help {
+  echo "$usage"
+  echo 
+  echo "$commands"
+}
+
 # First arg must be command or --help
 
 if [[ $# -gt 0 ]]; then
@@ -312,18 +316,18 @@ if [[ $# -gt 0 ]]; then
       exit $?
       ;;
     -h|--help)
-      echo "$usage"
-      echo 
-      echo "$commands"
+      print_help
       exit 0
       ;;
     *)
       printf 'FATAL: Unknown command: %s\n' "$1" >&2
-      echo "$usage"
-      echo 
-      echo "$commands"
+      print_help
       exit 1
       ;;
   esac
   shift
 fi
+
+# No commands given
+print_help
+exit 1
