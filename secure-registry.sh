@@ -1,6 +1,11 @@
 #!/bin/bash
-set -e 
-set -o pipefail
+
+# Turn on "strict mode"
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+# Not using -u as it upsets BATS :(
+set -eo pipefail
+unset CDPATH
+IFS=$'\n\t'
 
 function configure_nodes {
   echo
@@ -23,7 +28,8 @@ function configure_nodes {
   echo
   echo "Copying certs to nodes"
 
-  for job in $(kubectl get jobs -o go-template --template '{{range .items}}{{.metadata.name}} {{end}}')
+  for job in $(kubectl get jobs -o go-template --template '{{range .items}}{{.metadata.name}}
+    {{end}}')
   do
     if [[ $job = copy-certs* ]]; then
       kubectl delete job "$job"
@@ -64,7 +70,7 @@ function configure_host {
   local rc=$?
   if [[ $rc != 0 ]]; then
     echo "Registry certificate not found - expected it to be stored in the
-kubernetes secret registry-cert."
+Kubernetes secret registry-cert."
     echo "Failed to configure host."
     return 1
   fi
@@ -76,7 +82,7 @@ kubernetes secret registry-cert."
     tmp_file=$(mktemp /tmp/cert.XXXXXX)
     chmod go+rw "$tmp_file"
     kubectl get --namespace=kube-system secret registry-cert \
-            -o go-template --template '{{(index .data "ca.crt")}}'\
+            -o go-template --template '{{(index .data "ca.crt")}}' \
             | $base64_decode > "$tmp_file"
     docker run --rm -v "$tmp_file":/data/cert -v /etc/docker:/data/docker alpine \
             sh -c "mkdir -p /data/docker/certs.d/$registry_host\:$registry_port &&
@@ -90,7 +96,7 @@ kubernetes secret registry-cert."
     kubectl get --namespace=kube-system secret registry-cert \
       -o go-template --template '{{(index .data "ca.crt")}}' \
       | $base64_decode > \
-      /etc/docker/certs.d/${registry_host}:$registry_port/ca.crt
+      "/etc/docker/certs.d/${registry_host}:$registry_port/ca.crt"
   fi
 
   echo
@@ -114,7 +120,7 @@ kubernetes secret registry-cert."
   # turned off stderr here, as ed likes to write to it even in success case
 
   if [[ -n "$k8s_node" ]]; then
-    printf "g/$registry_host/d\nw\n" \
+    printf "g/%s/d\nw\n" "$registry_host" \
       | ed /etc/hosts 2> /dev/null
 
     echo "$k8s_node $registry_host #added by secure-kube-registry" >> /etc/hosts
@@ -124,7 +130,7 @@ kubernetes secret registry-cert."
     echo "You can force the IP using the SKR_EXTERNAL_IP variable."
     echo "For example, if you're running minikube:"
     echo
-    echo '$ export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E' "$0 -c"
+    echo '$ export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E' "$0 install-cert"
     return 2
   fi
   echo 
@@ -181,18 +187,65 @@ Note that this port will need to be open in any firewalls.
 To open a firewall in GCE, try:
 gcloud compute firewall-rules create expose-registry --allow TCP:$registry_port
 
-Use the -c flag to configure a local Docker daemon to access the registry:
-$ sudo $0 -c
+Use install-cert command to configure a local Docker daemon to access the 
+registry:
+$ sudo $0 install-cert
 
 Or on minikube:
-$ echo 'export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E' "$0 -c"
+$ echo 'export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E' "$0 install-cert"
 EOF
   )
   echo "$completed"
 }
 
-#start main
+function process_k8s_args {
 
+  while [[ $# -gt 0 ]]
+  do
+    key="$1"
+
+    case $key in
+      -y|--yes)
+        require_confirm=false
+        ;;
+      *)
+        ;;
+    esac
+    shift
+  done
+}
+
+function process_cert_args {
+
+  while [[ $# -gt 0 ]]
+  do
+    key="$1"
+
+    case $key in
+      -y|--yes)
+        require_confirm=false
+        ;;
+      *)
+        ;;
+    esac
+    shift
+  done
+}
+
+function install_cert {
+  if [[ $(id -u) -ne 0 ]]; then
+    # could use docker to circumvent this issue
+    echo "Installing a certificate requires root privileges i.e:"
+    echo 
+    echo "$ sudo $0 $args"
+    exit 1
+  fi
+  echo "Setting up localhost to access registry"
+  configure_host
+  return $?
+}
+
+#start main
 
 registry_host="kube-registry.kube-system.svc.cluster.local"
 registry_port=31000
@@ -205,40 +258,15 @@ if [[ "$(uname -s)" = "Darwin" ]]; then
 fi
 
 #change to directory with script so we can reach deps
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$script_dir"
+#https://stackoverflow.com/questions/59895/can-a-bash-script-tell-which-directory-it-is-stored-in
+src_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$src_dir"
 
 #process args
 
 args=$@
-print_help=false
-install_cert=false
-install_k8s=false
 require_confirm=true
 
-
-while [[ $# -gt 0 ]]
-do
-  key="$1"
-
-  case $key in
-    -c|--install-cert)
-      install_cert=true
-      ;;
-    -k|--install-k8s-reg)
-      install_k8s=true
-      ;;
-    -y|--yes)
-      require_confirm=false
-      ;;
-    -h|--help)
-      print_help=true
-      ;;
-    *)
-      ;;
-  esac
-  shift
-done
 
 usage=$(cat <<EOF
 
@@ -247,41 +275,55 @@ certificates.
 EOF
 )
 
-options=$(cat <<EOF
-  -c --install-cert    install the registry certificate on the current 
-                       Docker engine.
-  -k --install-k8s-reg install a secure registy on a Kubernetes cluster or 
-                       minikube.
-  -y --yes             proceed without asking for confirmation
+commands=$(cat <<EOF
+Commands:
+
+  install-cert    install the registry certificate on the current Docker 
+                  engine.
+  install-k8s-reg install a secure registy on a Kubernetes cluster or minikube.
+
+Options:
+
+install-cert
+  -y --yes               proceed without asking for confirmation
+  --cert-file            path or URL for registry certificate
+  --k8s-secret SECRET    retrieve the certificate from the named secret    
+  --add-host IP NAME     add an entry in /etc/hosts for the registry with IP
+                         and NAME
+
+install-k8s-reg
+  --name NAME     sets the name of the registry
+
 EOF
 )
 
+# First arg must be command or --help
 
-if [[ "$install_k8s" = true ]];then
-  install_k8s_registry
-  exit $?
-fi
-
-if [[ "$install_cert" = true ]]; then
-  if [[ $(id -u) -ne 0 ]]; then
-    # could use docker to circumvent this issue
-    echo "Installing a certificate requires root privileges i.e:"
-    echo 
-    echo "$ sudo $0 $args"
-    exit 1
-  fi
-  echo "Setting up localhost to access registry"
-  configure_host
-  exit $?
-fi
-
-echo "$usage"
-echo 
-echo "$options"
-
-
-if [[ "$print_help" = true ]]; then
-  exit 0
-else
-  exit 1
+if [[ $# -gt 0 ]]; then
+  case $1 in
+    install-cert)
+      process_cert_args "$@"
+      install_cert
+      exit $?
+      ;;
+    install-k8s-reg)
+      process_k8s_args "$@"
+      install_k8s_registry
+      exit $?
+      ;;
+    -h|--help)
+      echo "$usage"
+      echo 
+      echo "$commands"
+      exit 0
+      ;;
+    *)
+      printf 'FATAL: Unknown command: %s\n' "$1" >&2
+      echo "$usage"
+      echo 
+      echo "$commands"
+      exit 1
+      ;;
+  esac
+  shift
 fi
