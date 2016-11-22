@@ -85,18 +85,18 @@ Kubernetes secret registry-cert."
             -o go-template --template '{{(index .data "ca.crt")}}' \
             | base64 -D > "$tmp_file"
     docker run --rm -v "$tmp_file":/data/cert -v /etc/docker:/data/docker alpine \
-            sh -c "mkdir -p /data/docker/certs.d/$registry_host\:$registry_port &&
-                   cp /data/cert /data/docker/certs.d/$registry_host\:$registry_port/ca.crt"
+            sh -c "mkdir -p /data/docker/certs.d/${registry_host} &&
+                   cp /data/cert /data/docker/certs.d/${registry_host}/ca.crt"
     rm "$tmp_file"
 
   else #on Linux
 
     echo "Adding certificate to local machine..."
-    mkdir -p "/etc/docker/certs.d/${registry_host}:$registry_port"
+    mkdir -p "/etc/docker/certs.d/${registry_host}"
     kubectl get --namespace=kube-system secret registry-cert \
       -o go-template --template '{{(index .data "ca.crt")}}' \
       | base64 -d > \
-      "/etc/docker/certs.d/${registry_host}:$registry_port/ca.crt"
+      "/etc/docker/certs.d/${registry_host}/ca.crt"
   fi
 
   echo
@@ -138,6 +138,7 @@ Kubernetes secret registry-cert."
   return 0
 }
 
+
 function install_k8s_registry {
 
   k8s_usage=$(cat <<EOF 
@@ -175,24 +176,25 @@ EOF
   echo 
 
   echo
+  # TODO Add check for no port and set to 80
   completed=$(cat <<-EOF
 Set-up completed
 
 The registry certificate is stored in the secret "registry-cert"
 
 The registry should shortly be available to the cluster at:
-${registry_host}:$registry_port
+${registry_host}
 
 Note that this port will need to be open in any firewalls.
 To open a firewall in GCE, try:
-gcloud compute firewall-rules create expose-registry --allow TCP:$registry_port
+gcloud compute firewall-rules create expose-registry --allow TCP:${registry_port}
 
 Use install-cert command to configure a local Docker daemon to access the 
 registry:
 $ sudo $0 install-cert
 
 Or on minikube:
-$ echo 'export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E' "$0 install-cert"
+$ echo 'export SKR_EXTERNAL_IP=\$(minikube ip) && sudo -E' "$0 install-cert"
 EOF
   )
   echo "$completed"
@@ -208,11 +210,21 @@ function process_k8s_args {
       -y|--yes)
         require_confirm=false
         ;;
+      -n|--name)
+        registry_host="$2"
+        shift
+        ;;
       *)
         ;;
     esac
     shift
   done
+
+  if [[ $registry_host == *":"* ]]; then
+    registry_port=${registry_host##*:} 
+  else
+    registry_port="80"
+  fi
 }
 
 function process_cert_args {
@@ -247,8 +259,9 @@ function install_cert {
 
 #start main
 
-registry_host="kube-registry.kube-system.svc.cluster.local"
-registry_port=31000
+default_host="kube-registry.kube-system.svc.cluster.local:31000"
+registry_host=$default_host
+registry_port= #parsed from host later
 
 on_mac=false
 if [[ "$(uname -s)" = "Darwin" ]]; then
@@ -290,7 +303,7 @@ install-cert
                          and NAME
 
 install-k8s-reg
-  --name NAME     sets the name of the registry
+  --name NAME     sets the address of the registry. Defaults to $default_host
 
 EOF
 )
