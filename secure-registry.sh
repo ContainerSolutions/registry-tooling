@@ -210,10 +210,10 @@ function process_k8s_args {
       -y|--yes)
         require_confirm=false
         ;;
-      -n|--name)
-        registry_host="$2"
-        shift
-        ;;
+#      -n|--name)
+#        registry_host="$2"
+#        shift
+#        ;;
       *)
         ;;
     esac
@@ -303,7 +303,7 @@ install-cert
                          and NAME
 
 install-k8s-reg
-  --name NAME     sets the address of the registry. Defaults to $default_host
+  -y --yes               proceed without asking for confirmation
 
 EOF
 )
