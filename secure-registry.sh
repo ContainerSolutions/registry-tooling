@@ -63,79 +63,93 @@ function configure_nodes {
   set -e
 }
 
-function configure_host {
+function get_cert_from_k8s {
+  local tmp_file="$1"
+
+  base64_arg="-d"
+  if "$on_mac"; then
+    base64_arg="-D"
+  fi
 
   set +e
-  kubectl get --namespace=kube-system secret registry-cert &> /dev/null
+  kubectl get --namespace="$k8s_secret_ns" secret "$k8s_secret" \
+            -o go-template --template '{{(index .data "ca.crt")}}' \
+            | exec base64 $base64_arg > "$tmp_file"
   local rc=$?
   if [[ $rc != 0 ]]; then
     echo "Registry certificate not found - expected it to be stored in the
-Kubernetes secret registry-cert."
+Kubernetes secret $k8s_secret."
     echo "Failed to configure host."
     return 1
   fi
   set -e
+}
+
+function copy_cert {
+
+  cert_file=$1
 
   if "$on_mac"; then
 
     echo "Assuming running Docker for Mac - adding certificate to internal VM"
-    tmp_file=$(mktemp /tmp/cert.XXXXXX)
-    chmod go+rw "$tmp_file"
-    kubectl get --namespace=kube-system secret registry-cert \
-            -o go-template --template '{{(index .data "ca.crt")}}' \
-            | base64 -D > "$tmp_file"
-    docker run --rm -v "$tmp_file":/data/cert -v /etc/docker:/data/docker alpine \
+    chmod go+rw "$cert_file"
+    docker run --rm -v "$cert_file":/data/cert -v /etc/docker:/data/docker alpine \
             sh -c "mkdir -p /data/docker/certs.d/${registry_host} &&
                    cp /data/cert /data/docker/certs.d/${registry_host}/ca.crt"
-    rm "$tmp_file"
 
   else #on Linux
 
     echo "Adding certificate to local machine..."
     mkdir -p "/etc/docker/certs.d/${registry_host}"
-    kubectl get --namespace=kube-system secret registry-cert \
-      -o go-template --template '{{(index .data "ca.crt")}}' \
-      | base64 -d > \
-      "/etc/docker/certs.d/${registry_host}/ca.crt"
+    cp "$cert_file"  "/etc/docker/certs.d/${registry_host}/ca.crt"
   fi
+}
+
+function add_to_etc_hosts {
 
   echo
   echo "Exposing registry via /etc/hosts"
 
-  local schedulable_nodes=""
-  if [[ "$SKR_EXTERNAL_IP" ]]; then
-    schedulable_nodes=$SKR_EXTERNAL_IP
-  else
-    schedulable_nodes=$(kubectl get nodes -o template \
-      --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "ExternalIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')
-  fi
-
-  for n in $schedulable_nodes 
-  do
-    k8s_node=$n
-    break
-  done
 
   # sed would be a better choice than ed, but it wants to create a temp file :(
   # turned off stderr here, as ed likes to write to it even in success case
 
-  if [[ -n "$k8s_node" ]]; then
-    printf "g/%s/d\nw\n" "$registry_host" \
+  if [[ -n "$add_host_ip" ]]; then
+    printf "g/%s/d\nw\n" "$add_host_name" \
       | ed /etc/hosts 2> /dev/null
 
-    echo "$k8s_node $registry_host #added by secure-kube-registry" >> /etc/hosts
+    echo "$add_host_ip $add_host_name #added by secure-kube-registry" >> /etc/hosts
   else
     echo
     echo "Failed to find external address for cluster" >&2
-    echo "You can force the IP using the SKR_EXTERNAL_IP variable."
+    echo "Please set the IP address explicitly."
     echo "For example, if you're running minikube:"
     echo
-    echo '$ export SKR_EXTERNAL_IP=$(minikube ip) && sudo -E' "$0 install-cert"
-    return 2
+    echo "$ sudo $0 install-cert" '--add-host $(minikube ip)'
+    exit 2
   fi
   echo 
   echo "Succesfully configured localhost"
   return 0
+}
+
+function get_ip_from_k8s {
+
+  add_host_ip=""
+  local schedulable_nodes=""
+  schedulable_nodes="$(kubectl get nodes -o template \
+    --template='{{range.items}}{{if not .spec.unschedulable}}{{range.status.addresses}}{{if eq .type "ExternalIP"}}{{.address}} {{end}}{{end}}{{end}}{{end}}')" 
+
+  for n in $schedulable_nodes 
+  do
+    add_host_ip=$n
+    break
+  done
+
+  if [[ -z "$add_host_ip" ]]; then
+    "Failed to get ip for host"
+    exit 1
+  fi
 }
 
 
@@ -148,7 +162,8 @@ for secure access via TLS.
 
 This involves generating a TLS certificate and copying it to all nodes, plus
 setting /etc/hosts on the nodes to resolve the registry name. The certificate
-will be stored as a Kubernetes secret named "registry-cert".
+will be stored as a Kubernetes secret named "registry-cert" in the kube-system
+namespace.
 
 If you are concerned about the effects of editing /etc/hosts or do not
 understand the above, please do not use this tool.
@@ -180,7 +195,8 @@ EOF
   completed=$(cat <<-EOF
 Set-up completed
 
-The registry certificate is stored in the secret "registry-cert"
+The registry certificate is stored in the secret "registry-cert" in the
+kube-system namespace.
 
 The registry should shortly be available to the cluster at:
 ${registry_host}
@@ -194,7 +210,7 @@ registry:
 $ sudo $0 install-cert
 
 Or on minikube:
-$ echo 'export SKR_EXTERNAL_IP=\$(minikube ip) && sudo -E' "$0 install-cert"
+$ echo "sudo $0 install-cert" --add-host '$(minikube ip)'
 EOF
   )
   echo "$completed"
@@ -237,6 +253,53 @@ function process_cert_args {
       -y|--yes)
         require_confirm=false
         ;;
+      --cert-file)
+        file_path="$2"
+
+        if [[ -z "$file_path" ]]; then
+          echo "No certificate file provided"
+          exit 1
+        fi 
+        
+        shift
+        ;;
+      --k8s-secret)
+        k8s_secret="$2"
+
+        if [[ -z "$k8s_secret" ]]; then
+          echo "No secret provided"
+          exit 1
+        fi 
+        shift
+        ;;
+      --k8s-secret-ns)
+        k8s_secret_ns="$2"
+        if [[ -z "$k8s_secret_ns" ]]; then
+          echo "No namespace provided"
+          exit 1
+        fi 
+        shift
+        ;;
+      --add-host)
+        add_host_ip="$2"
+        if [[ -z $add_host_ip || ${add_host_ip:0:1} == "-" ]]; then
+          # ip/name not specified; ask k8s
+          add_host_ip=""
+          add_host_name=${default_host%%:*}
+          echo "Assuming host name $add_host_name"
+          get_ip_from_k8s
+          continue
+        fi 
+        add_host_name="$3"
+        if [[ -z $add_host_name ]]; then
+          add_host_name=${default_host%%:*}
+          echo "Assuming host name $add_host_name"
+          shift
+          break
+        fi
+        shift
+        shift
+        ;;
       *)
         ;;
     esac
@@ -244,7 +307,15 @@ function process_cert_args {
   done
 }
 
+#TODO kill env var
+#Pull out IP finding
+#rewire
+
+
 function install_cert {
+
+  tmp_file=$(mktemp /tmp/cert.XXXXXX)
+
   if [[ $(id -u) -ne 0 ]]; then
     # could use docker to circumvent this issue
     echo "Installing a certificate requires root privileges i.e:"
@@ -252,8 +323,34 @@ function install_cert {
     echo "$ sudo $0 $args"
     exit 1
   fi
-  echo "Setting up localhost to access registry"
-  configure_host
+  if [[ -n "$file_path" && -n "$k8s_secret" ]]; then
+    echo "Cannot set both file path and kubernetes secret"
+    exit 1
+  elif [[ -n "$file_path" ]]; then
+    if [[ "$file_path" == http://* || "$file_path" == https://* ]]; then
+      command -v curl >/dev/null 2>&1 || { 
+        echo >&2 "Install curl to get certificates from URL"
+        exit 1 
+      }
+      echo "Retrieving certificate from $file_path"
+      curl -sSL "$file_path" > "$tmp_file" 
+    fi
+
+  else 
+    echo "Retrieving certificate from Kubernetes secret $k8s_secret in"
+    echo "namespace $k8s_secret_ns"
+    get_cert_from_k8s "$tmp_file"
+  fi
+
+  echo "Installing certificate"
+  copy_cert "$tmp_file"
+
+
+  if [[ -n "add_host_ip" ]]; then
+    #probably put check here
+    add_to_etc_hosts
+  fi
+
   return $?
 }
 
@@ -261,7 +358,7 @@ function install_cert {
 
 default_host="kube-registry.kube-system.svc.cluster.local:31000"
 registry_host=$default_host
-registry_port= #parsed from host later
+registry_port='' #parsed from host later
 
 on_mac=false
 if [[ "$(uname -s)" = "Darwin" ]]; then
@@ -277,7 +374,10 @@ cd "$src_dir"
 
 args=$@
 require_confirm=true
-
+file_path=
+k8s_secret="registry-cert"
+k8s_secret_ns="kube-system"
+add_host_ip=
 
 usage=$(cat <<EOF
 
@@ -296,9 +396,10 @@ Commands:
 Options:
 
 install-cert
-  -y --yes               proceed without asking for confirmation
-  --cert-file            path or URL for registry certificate
-  --k8s-secret SECRET    retrieve the certificate from the named secret    
+  --cert-file FILE       path or URL for registry certificate
+  --k8s-secret SECRET    retrieve the certificate from the named secret
+                         (if not set, defaults to registry-cert)
+  --k8s-secret-ns NS     use the namespace NS when retrieving the secret
   --add-host IP NAME     add an entry in /etc/hosts for the registry with IP
                          and NAME
 
