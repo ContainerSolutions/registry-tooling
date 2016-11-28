@@ -1,0 +1,12 @@
+ [ req ]
+ distinguished_name     = req_distinguished_name
+ prompt                 = no
+
+ [ req_distinguished_name ]
+ C                      = GB
+ ST                     = Test State or Province
+ L                      = Test Locality
+ O                      = Local Secure Registry for Kubernetes
+ CN                     = test-docker-reg
+ emailAddress           = test@email.address
+
