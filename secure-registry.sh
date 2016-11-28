@@ -210,7 +210,7 @@ registry:
 $ sudo $0 install-cert
 
 Or on minikube:
-$ echo "sudo $0 install-cert" --add-host '$(minikube ip)'
+$ sudo $0 install-cert --add-host \$(minikube ip)
 EOF
   )
   echo "$completed"
