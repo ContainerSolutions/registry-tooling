@@ -11,8 +11,8 @@ function setup {
 }
 
 @test "happy path" {
-  ../secure-registry.sh install-k8s-reg -y > /dev/null
-  sudo ../secure-registry.sh install-cert --add-host $(minikube ip) > /dev/null
+  ../reg-tool.sh install-k8s-reg -y > /dev/null
+  sudo ../reg-tool.sh install-cert --add-host $(minikube ip) > /dev/null
   docker pull alpine:latest
   docker tag alpine:latest kube-registry.kube-system.svc.cluster.local:31000/alpine:latest
   # this typically fails, presumably due to caching of DNS in lib used by Docker
