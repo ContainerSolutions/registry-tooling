@@ -265,9 +265,18 @@ function process_cert_args {
         ;;
       --k8s-secret)
         k8s_secret="$2"
+        k8s_secret_set=true
 
         if [[ -z "$k8s_secret" ]]; then
           echo "No secret provided"
+          exit 1
+        fi 
+        shift
+        ;;
+      --reg-name)
+        registry_host=$2
+        if [[ -z "$registry_host" ]]; then
+          echo "No registry name provided"
           exit 1
         fi 
         shift
@@ -323,7 +332,7 @@ function install_cert {
     echo "$ sudo $0 $args"
     exit 1
   fi
-  if [[ -n "$file_path" && -n "$k8s_secret" ]]; then
+  if [[ -n "$file_path" && -n "$k8s_secret_set" ]]; then
     echo "Cannot set both file path and kubernetes secret"
     exit 1
   elif [[ -n "$file_path" ]]; then
@@ -334,6 +343,8 @@ function install_cert {
       }
       echo "Retrieving certificate from $file_path"
       curl -sSL "$file_path" > "$tmp_file" 
+    else
+      cp "$file_path" "$tmp_file"
     fi
 
   else 
@@ -376,6 +387,7 @@ args=$@
 require_confirm=true
 file_path=
 k8s_secret="registry-cert"
+k8s_secret_set=
 k8s_secret_ns="kube-system"
 add_host_ip=
 
@@ -397,8 +409,10 @@ Options:
 
 install-cert
   --cert-file FILE       path or URL for registry certificate
-  --k8s-secret SECRET    retrieve the certificate from the named secret
-                         (if not set, defaults to registry-cert)
+  --reg-name NAME        full name of the registry including port. Defaults to 
+                         kube-registry.kube-system.svc.cluster.local:31000
+  --k8s-secret SECRET    retrieve the certificate from the named secret.
+                         Defaults to registry-cert.
   --k8s-secret-ns NS     use the namespace NS when retrieving the secret
   --add-host IP NAME     add an entry in /etc/hosts for the registry with IP
                          and NAME
