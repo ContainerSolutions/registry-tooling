@@ -78,9 +78,9 @@ function get_cert_from_k8s {
   local rc=$?
   if [[ $rc != 0 ]]; then
     echo "Registry certificate not found - expected it to be stored in the
-Kubernetes secret $k8s_secret."
+Kubernetes secret $k8s_secret in namespace $k8s_secret_ns"
     echo "Failed to configure host."
-    return 1
+    exit 1
   fi
   set -e
 }
@@ -348,8 +348,30 @@ function install_cert {
     fi
 
   else 
-    echo "Retrieving certificate from Kubernetes secret $k8s_secret in"
-    echo "namespace $k8s_secret_ns"
+    if [[ -z "$k8s_secret_ns" ]]; then
+      #test if secret in default ns or kube-system
+      set +e
+      kubectl get secret "$k8s_secret" --namespace=kube-system
+      local rc=$?
+      if [[ $rc == 0 ]]; then
+        k8s_secret_ns="kube-system"
+      else
+        kubectl get secret "$k8s_secret" --namespace=
+        rc=$?
+        if [[ $rc == 0 ]]; then
+          k8s_secret_ns=
+        else
+          echo "Cannot find secret $k8s_secret in kube-system or default namespace"
+          exit 1
+        fi
+      fi
+      set -e
+
+    fi
+    echo "Retrieving certificate from Kubernetes secret $k8s_secret"
+    if [[ -n $k8s_secret_ns ]]; then
+      echo "in namespace $k8s_secret_ns"
+    fi
     get_cert_from_k8s "$tmp_file"
   fi
 
@@ -388,7 +410,7 @@ require_confirm=true
 file_path=
 k8s_secret="registry-cert"
 k8s_secret_set=
-k8s_secret_ns="kube-system"
+k8s_secret_ns=
 add_host_ip=
 
 usage=$(cat <<EOF

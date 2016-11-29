@@ -55,6 +55,8 @@ function teardown {
              --reg-name "$full_reg_name" \
              --add-host 0.0.0.0 test-docker-reg > /dev/null
 
+  docker stop test-cert-server > /dev/null
+  docker rm test-cert-server > /dev/null
   docker pull alpine:latest > /dev/null
   docker tag alpine:latest "$full_reg_name"/test-image > /dev/null
   docker push "$full_reg_name"/test-image > /dev/null
@@ -62,4 +64,14 @@ function teardown {
 
 @test "install via secret" {
 
+  kubectl delete secret test-registry-cert &> /dev/null || true 
+  kubectl create secret generic test-registry-cert --from-file="$cert_dir"/ca.crt
+  sudo ../reg-tool.sh install-cert \
+             --k8s-secret test-registry-cert \
+             --reg-name "$full_reg_name" \
+             --add-host 0.0.0.0 test-docker-reg > /dev/null
+
+  docker pull alpine:latest > /dev/null
+  docker tag alpine:latest "$full_reg_name"/test-image > /dev/null
+  docker push "$full_reg_name"/test-image > /dev/null
 }
