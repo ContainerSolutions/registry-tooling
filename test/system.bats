@@ -13,6 +13,17 @@ function setup {
 @test "happy path" {
   ../reg-tool.sh install-k8s-reg -y > /dev/null
   sudo ../reg-tool.sh install-cert --add-host $(minikube ip) > /dev/null
+  # need a restart on Docker for Mac
+  if [[ "$(uname -s)" = "Darwin" ]]; then
+    killall com.docker.osx.hyperkit.linux
+    sleep 1
+    run docker pull alpine:latest > /dev/null
+    while [[ "$status" != 0 ]]
+    do
+      sleep 1
+      run docker pull alpine:latest &> /dev/null
+    done
+  fi
   docker pull alpine:latest
   docker tag alpine:latest kube-registry.kube-system.svc.cluster.local:31000/alpine:latest
   # this typically fails, presumably due to caching of DNS in lib used by Docker

@@ -30,12 +30,31 @@ function teardown {
 
 }
 
+function restart_docker_mac {
+
+  if [[ "$(uname -s)" = "Darwin" ]]; then
+    killall com.docker.osx.hyperkit.linux
+    sleep 2
+    run docker pull alpine:latest > /dev/null
+    while [[ "$status" != 0 ]]
+    do
+      sleep 1
+      run docker pull alpine:latest &> /dev/null
+    done
+    docker start test-docker-reg
+    local running_address=$(docker port test-docker-reg 5000)
+    local mapped_port=${running_address##*:}
+    full_reg_name=test-docker-reg:"$mapped_port"
+  fi
+}
+
 @test "install via file" {
   
   sudo ../reg-tool.sh install-cert --cert-file "$cert_dir"/ca.crt \
              --reg-name "$full_reg_name" \
              --add-host 0.0.0.0 test-docker-reg > /dev/null
 
+  restart_docker_mac
   docker pull alpine:latest > /dev/null
   docker tag alpine:latest "$full_reg_name"/test-image > /dev/null
   docker push "$full_reg_name"/test-image > /dev/null
@@ -54,6 +73,7 @@ function teardown {
              --cert-file http://$(docker port test-cert-server 80)/ca.crt \
              --reg-name "$full_reg_name" \
              --add-host 0.0.0.0 test-docker-reg > /dev/null
+  restart_docker_mac
 
   docker stop test-cert-server > /dev/null
   docker rm test-cert-server > /dev/null
@@ -64,12 +84,20 @@ function teardown {
 
 @test "install via secret" {
 
+  minikube start > /dev/null || true
+  run kubectl cluster-info > /dev/null
+  while [[ "$status" != 0 ]]
+  do
+    sleep 1
+    run kubectl cluster-info > /dev/null
+  done
   kubectl delete secret test-registry-cert &> /dev/null || true 
   kubectl create secret generic test-registry-cert --from-file="$cert_dir"/ca.crt
   sudo ../reg-tool.sh install-cert \
              --k8s-secret test-registry-cert \
              --reg-name "$full_reg_name" \
              --add-host 0.0.0.0 test-docker-reg > /dev/null
+  restart_docker_mac
 
   docker pull alpine:latest > /dev/null
   docker tag alpine:latest "$full_reg_name"/test-image > /dev/null
