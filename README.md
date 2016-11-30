@@ -34,13 +34,15 @@ $ sudo ./reg-tool.sh install-cert \
          --reg-name test-docker-reg:5000 \
          --add-host 192.168.1.103 test-docker-reg
 Installing certificate
-Assuming running Docker for Mac - adding certificate to internal VM
+Assuming running Docker for Mac - adding certificate to Docker keychain
+
+Certificate added - restart Docker for Mac to take effect
 
 Exposing registry via /etc/hosts
 497
 442
 
-Succesfully configured localhost
+Successfully configured localhost
 ```
 
 And now the following should work:
@@ -54,9 +56,7 @@ latest: digest: sha256:1354db23ff5478120c980eca1611a51c9f2b88b61f24283ee8200bf9a
 ```
 
 This works on both Linux and Mac hosts. When using Docker for Mac, the
-certificate will be added to the internal VM that Docker for Mac uses.
-Unfortunately this means that you will need to run this command each time Docker
-for Mac is restarted, as the internal VM gets reset.
+certificate will be added to the system keychain.
 
 Certificates can also be retrieved from URLs or a Kubernetes secret.
 
