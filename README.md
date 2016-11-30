@@ -5,9 +5,9 @@ certificates.
 
 Currently there are two features:
 
- - configuring local clients to access a registry secured with a self-signed
+ - [configuring local clients](https://github.com/ContainerSolutions/registry-tooling#configuring-a-client-to-access-a-registry-with-a-self-signed-certificate) to access a registry secured with a self-signed
    cert
- - easy and secure installation of a Docker registry onto a Kubernetes cluster
+ - [easy and secure installation](https://github.com/ContainerSolutions/registry-tooling#installing-a-secure-reigstry-on-kubernetes) of a Docker registry onto a Kubernetes cluster
    using a self-signed certificate
 
 ## Installation
@@ -92,7 +92,7 @@ doing this, but please be aware that it could break things. If you want to get a
 secure registry running on existing cluster already handling load, I suggest you
 look at what the scripts do and run the steps manually.
 
-### Installing a Registry on Kubernetes
+### Usage
 
 The script will target whichever cluster `kubectl` currently points at.
 Assuming your cluster is up-and-running, try:
