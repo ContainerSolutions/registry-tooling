@@ -129,7 +129,7 @@ function add_to_etc_hosts {
     exit 2
   fi
   echo 
-  echo "Succesfully configured localhost"
+  echo "Successfully configured localhost"
   return 0
 }
 
