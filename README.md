@@ -7,7 +7,7 @@ Currently there are two features:
 
  - [configuring local clients](https://github.com/ContainerSolutions/registry-tooling#configuring-a-client-to-access-a-registry-with-a-self-signed-certificate) to access a registry secured with a self-signed
    cert
- - [easy and secure installation](https://github.com/ContainerSolutions/registry-tooling#installing-a-secure-reigstry-on-kubernetes) of a Docker registry onto a Kubernetes cluster
+ - [easy installation of a secure](https://github.com/ContainerSolutions/registry-tooling#installing-a-secure-reigstry-on-kubernetes) Docker registry onto a Kubernetes cluster
    using a self-signed certificate
 
 ## Installation
