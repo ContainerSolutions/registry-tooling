@@ -127,8 +127,8 @@ Please note that it sometimes takes a few minutes for DNS to update.
 ## Minikube
 
 If you're using minikube, note that you can also use the Docker daemon in the VM
-to access the registry. Rather than using the tool to install a certificate with
-`-c` just do:
+to access the registry. Rather than using the script to install a certificate
+you can just do:
 
 ```
 $ eval $(minkube docker-env)
