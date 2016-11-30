@@ -379,7 +379,7 @@ function install_cert {
   copy_cert "$tmp_file"
 
 
-  if [[ -n "add_host_ip" ]]; then
+  if [[ -n "$add_host_ip" ]]; then
     #probably put check here
     add_to_etc_hosts
   fi
