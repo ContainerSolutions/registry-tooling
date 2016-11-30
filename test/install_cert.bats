@@ -25,7 +25,7 @@ function teardown {
   docker stop test-docker-reg &> /dev/null || true
   docker rm test-docker-reg &> /dev/null || true
   if [[ -n $cert_dir ]]; then
-    rm -r "$cert_dir"
+    rm -rf "$cert_dir"
   fi
 
 }

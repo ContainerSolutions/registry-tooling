@@ -109,6 +109,13 @@ daemon to access the registry with:
 $ sudo ./reg-tool.sh install-cert --add-host
 ```
 
+or, if using minikube:
+
+```
+$ sudo ./reg-tool.sh install-cert --add-host $(minikube ip)
+```
+
+
 This command should work on any Linux or Docker for Mac host whose kubectl is
 pointing at a cluster running a configured registry. We can then test with:
 
@@ -122,7 +129,7 @@ $ docker push kube-registry.kube-system.svc.cluster.local:31000/redis
 $ kubectl run r1 --image kube-registry.kube-system.svc.cluster.local:31000/redis
 ```
 
-Please note that it sometimes takes a few minutes for DNS to update.
+Please note that it can sometimes take a few minutes for DNS to update.
 
 ## Minikube
 

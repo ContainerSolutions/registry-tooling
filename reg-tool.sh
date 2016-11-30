@@ -147,7 +147,11 @@ function get_ip_from_k8s {
   done
 
   if [[ -z "$add_host_ip" ]]; then
-    "Failed to get ip for host"
+    echo
+    echo "Failed to discover ip for registry."
+    echo "Please specify explicitly with --add-host e.g:"
+    echo
+    echo "  $0 --add-host 192.168.0.3 my-registry"
     exit 1
   fi
 }
@@ -351,12 +355,12 @@ function install_cert {
     if [[ -z "$k8s_secret_ns" ]]; then
       #test if secret in default ns or kube-system
       set +e
-      kubectl get secret "$k8s_secret" --namespace=kube-system
+      kubectl get secret "$k8s_secret" --namespace=kube-system > /dev/null
       local rc=$?
       if [[ $rc == 0 ]]; then
         k8s_secret_ns="kube-system"
       else
-        kubectl get secret "$k8s_secret" --namespace=
+        kubectl get secret "$k8s_secret" --namespace= > /dev/null
         rc=$?
         if [[ $rc == 0 ]]; then
           k8s_secret_ns=
