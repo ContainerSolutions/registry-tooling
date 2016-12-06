@@ -63,7 +63,7 @@ Certificates can also be retrieved from URLs or a Kubernetes secret.
 If the registry address is already resolvable, omit the `--add-host` flag to
 prevent `/etc/hosts` being edited.
 
-## Installing a Secure Reigstry on Kubernetes
+## Installing a Secure Registry on Kubernetes
 
 Whilst there is an existing [cluster addon to start a
 registry](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry),
