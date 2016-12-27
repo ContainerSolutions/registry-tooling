@@ -29,7 +29,8 @@ function configure_nodes {
   echo "Copying certs to nodes"
 
   for job in $(kubectl get jobs -o go-template --template '{{range .items}}{{.metadata.name}}
-    {{end}}')
+
+    {{end}}') # blank line is important
   do
     if [[ $job = copy-certs* ]]; then
       kubectl delete job "$job"

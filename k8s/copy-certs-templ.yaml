@@ -2,15 +2,15 @@
 kind: Job
 apiVersion: batch/v1
 metadata:
-  name: copy-certs-{{.metadata.name}}
+  name: copy-certs-{{.metadata.uid}}
 spec:
   template:
     metadata:
-      name: copy-certs-{{.metadata.name}}
+      name: copy-certs-{{.metadata.uid}}
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: copy-certs-{{.metadata.name}}
+        - name: copy-certs-{{.metadata.uid}}
           image: amouat/copy-certs
           imagePullPolicy: Always
           volumeMounts:
@@ -28,6 +28,6 @@ spec:
           hostPath: 
             path: /etc/hosts
       nodeSelector: 
-        kubernetes.io/hostname: {{.metadata.name}}
+        kubernetes.io/hostname: "{{.metadata.name}}"
 ---
 {{end}}{{end}}
