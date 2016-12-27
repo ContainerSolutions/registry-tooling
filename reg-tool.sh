@@ -92,11 +92,10 @@ function copy_cert {
 
   if "$on_mac"; then
 
-    echo "Assuming running Docker for Mac - adding certificate to internal VM"
-    chmod go+rw "$cert_file"
-    docker run --rm -v "$cert_file":/data/cert -v /etc/docker:/data/docker alpine \
-            sh -c "mkdir -p /data/docker/certs.d/${registry_host} &&
-                   cp /data/cert /data/docker/certs.d/${registry_host}/ca.crt"
+    echo "Assuming running Docker for Mac - adding certificate to Docker keychain"
+    sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$cert_file"
+    echo 
+    echo "Certificate added - restart Docker for Mac to take effect"
 
   else #on Linux
 
