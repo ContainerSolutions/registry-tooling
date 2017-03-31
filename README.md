@@ -138,8 +138,12 @@ to access the registry. Rather than using the script to install a certificate
 you can just do:
 
 ```
-$ eval $(minkube docker-env)
+$ eval $(minikube docker-env)
 ```
+
+If you do a `minikube stop` followed by a `minikube start`, you'll need to rerun
+`./reg-tool.sh` because `minikube start` overwrites `/etc/hosts` and sets up new
+certs.
 
 ## Further Development
 
