@@ -142,7 +142,7 @@ $ eval $(minikube docker-env)
 ```
 
 If you do a `minikube stop` followed by a `minikube start`, you'll need to rerun
-`./reg-tool.sh` because `minikube start` overwrites `/etc/hosts` and sets up new
+`./reg-tool.sh` as `minikube start` will overwrite `/etc/hosts` and create new
 certs.
 
 ## Further Development
