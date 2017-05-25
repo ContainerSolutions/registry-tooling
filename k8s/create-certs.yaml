@@ -10,5 +10,5 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: create-certs
-          image: amouat/create-certs
+          image: amouat/create-certs-auto
           imagePullPolicy: Always
