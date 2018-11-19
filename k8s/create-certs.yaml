@@ -1,3 +1,33 @@
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: registry-secret-manager
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: secret-manager-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create","delete","get","list","watch"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: secret-manager
+roleRef:
+  kind: ClusterRole 
+  name: secret-manager-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: registry-secret-manager
+  namespace: default
+
+---
 kind: Job
 apiVersion: batch/v1
 metadata:
@@ -8,6 +38,7 @@ spec:
       name: create-certs
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: registry-secret-manager
       containers:
         - name: create-certs
           image: amouat/create-certs-auto

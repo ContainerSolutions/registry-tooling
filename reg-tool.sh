@@ -14,7 +14,7 @@ function configure_nodes {
 
   echo
   echo "Creating new registry certificate"
-  kubectl create -f k8s/create-certs.yaml
+  kubectl create -f k8s/create-certs.yaml &> /dev/null || true
 
   echo
   echo -n "Waiting for job to complete"
