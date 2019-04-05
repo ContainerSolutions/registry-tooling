@@ -9,6 +9,7 @@ spec:
       name: copy-certs-{{.metadata.uid}}
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: registry-secret-manager
       containers:
         - name: copy-certs-{{.metadata.uid}}
           image: amouat/copy-certs-auto
